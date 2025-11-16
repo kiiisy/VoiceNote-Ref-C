@@ -14,88 +14,44 @@ using namespace testutil;
 
 static const std::size_t kN = testutil::num_samples();
 
-// 入力生成
-static void gen_input_case1(std::vector<float> &x)
+// caseN_input.csv を読み込む
+static void load_input_case(int case_index, std::vector<float> &x)
 {
-    x.resize(kN);
-    const double dc   = 0.2;
-    const double freq = 1000.0;
-
-    for (std::size_t n = 0; n < kN; ++n) {
-        double t = static_cast<double>(n) / sample_rate();
-        x[n]     = static_cast<float>(std::sin(2.0 * M_PI * freq * t) + dc);
+    std::string file;
+    switch (case_index) {
+    case 1:
+        file = "dc_cut_case1_input.csv";
+        break;
+    case 2:
+        file = "dc_cut_case2_input.csv";
+        break;
+    case 3:
+        file = "dc_cut_case3_input.csv";
+        break;
+    case 4:
+        file = "dc_cut_case4_input.csv";
+        break;
+    case 5:
+        file = "dc_cut_case5_input.csv";
+        break;
+    default:
+        throw std::runtime_error("Invalid case index");
     }
-}
 
-static void gen_input_case2(std::vector<float> &x)
-{
-    x.resize(kN);
-    const double dc     = 0.1;
-    const double f_low  = 50.0;
-    const double f_high = 3000.0;
-
-    for (std::size_t n = 0; n < kN; ++n) {
-        double t = static_cast<double>(n) / sample_rate();
-        double v = 0.6 * std::sin(2.0 * M_PI * f_low * t) + 0.3 * std::sin(2.0 * M_PI * f_high * t) + dc;
-        x[n]     = static_cast<float>(v);
-    }
-}
-
-static void gen_input_case3(std::vector<float> &x)
-{
-    x.assign(kN, 1.0f);  // ステップ入力
-}
-
-static void gen_input_case4(std::vector<float> &x)
-{
-    // Pythonで生成した乱数波形を読む
-    auto csv = golden_path("DcCut", "dc_cut_case4_input.csv");
-    x        = load_csv(csv);
+    auto path = golden_path("DcCut", file);
+    x         = load_csv(path);
 
     if (x.size() != kN) {
-        throw std::runtime_error("Case4 input CSV size mismatch");
-    }
-}
-
-static void gen_input_case5(std::vector<float> &x)
-{
-    // sin(1000Hz) + 0.1*sin(0.3Hz)
-    x.resize(kN);
-    const double f_sig   = 1000.0;
-    const double f_drift = 0.3;
-
-    for (std::size_t n = 0; n < kN; ++n) {
-        double t     = static_cast<double>(n) / sample_rate();
-        double drift = 0.1 * std::sin(2.0 * M_PI * f_drift * t);
-        double sig   = std::sin(2.0 * M_PI * f_sig * t);
-        x[n]         = static_cast<float>(sig + drift);
+        throw std::runtime_error("DcCut input size mismatch");
     }
 }
 
 // 1ケース分を実行・比較する共通関数
 static void run_case(int case_index, const std::string &case_name)
 {
-    // 入力生成 (mono)
+    // 入力（mono）
     std::vector<float> x_mono;
-    switch (case_index) {
-    case 1:
-        gen_input_case1(x_mono);
-        break;
-    case 2:
-        gen_input_case2(x_mono);
-        break;
-    case 3:
-        gen_input_case3(x_mono);
-        break;
-    case 4:
-        gen_input_case4(x_mono);
-        break;
-    case 5:
-        gen_input_case5(x_mono);
-        break;
-    default:
-        throw std::runtime_error("Invalid case index");
-    }
+    load_input_case(case_index, x_mono);
 
     // ステレオ化
     std::vector<float> in_stereo;

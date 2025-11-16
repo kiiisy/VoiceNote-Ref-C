@@ -40,4 +40,6 @@
 # debug information files
 *.dwo
 
-/build
+build/
+.DS_Store
+.vscode/

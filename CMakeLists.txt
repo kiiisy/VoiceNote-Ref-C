@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ライブラリ
 add_library(dsp_core
     model/DcCut/dc_cut.cpp
+    model/NoiseGate/noise_gate.cpp
 )
 
 target_include_directories(dsp_core
@@ -52,3 +53,4 @@ endfunction()
 
 # ここにテストを列挙していく
 add_dsp_test(test_dc_cut DcCut)
+add_dsp_test(test_noise_gate NoiseGate)
