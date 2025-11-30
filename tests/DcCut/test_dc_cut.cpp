@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 
@@ -14,8 +15,7 @@ using namespace testutil;
 
 static const std::size_t kN = testutil::num_samples();
 
-// caseN_input.csv を読み込む
-static void load_input_case(int case_index, std::vector<float> &x)
+static void load_input_case(int case_index, std::vector<int16_t> &x)
 {
     std::string file;
     switch (case_index) {
@@ -39,7 +39,7 @@ static void load_input_case(int case_index, std::vector<float> &x)
     }
 
     auto path = golden_path("DcCut", file);
-    x         = load_csv(path);
+    x         = load_csv(path);  // ★ S16で読む
 
     if (x.size() != kN) {
         throw std::runtime_error("DcCut input size mismatch");
@@ -49,38 +49,41 @@ static void load_input_case(int case_index, std::vector<float> &x)
 // 1ケース分を実行・比較する共通関数
 static void run_case(int case_index, const std::string &case_name)
 {
-    // 入力（mono）
-    std::vector<float> x_mono;
+    // 入力（mono, S16）
+    std::vector<int16_t> x_mono;
     load_input_case(case_index, x_mono);
 
-    // ステレオ化
-    std::vector<float> in_stereo;
-    std::vector<float> out_stereo;
-    mono_to_stereo_interleaved(x_mono, in_stereo);
-    out_stereo.resize(in_stereo.size());
+    // ステレオ化（S16）
+    std::vector<int16_t> in_stereo(2 * kN);
+    for (std::size_t n = 0; n < kN; ++n) {
+        in_stereo[2 * n + 0] = x_mono[n];
+        in_stereo[2 * n + 1] = x_mono[n];
+    }
 
-    // DCカット実行
+    std::vector<int16_t> out_stereo(2 * kN);
+
+    // DCカット実行（S16 in/out）
     dsp::dc_cut(in_stereo.data(), out_stereo.data(), kN, sample_rate(), dc_cut_cutoff_hz());
 
-    // 左チャンネルだけ抽出
-    std::vector<float> out_left(kN);
+    // 左チャンネルだけ抽出（S16）
+    std::vector<int16_t> out_left(kN);
     for (std::size_t n = 0; n < kN; ++n) {
         out_left[n] = out_stereo[2 * n + 0];
     }
 
-    // C++結果を CSV に出力
+    // C++結果を CSV に出力（S16）
     auto out_path = output_path("DcCut", case_name + "_cpp.csv");
     write_csv(out_path, out_left);
 
-    // Python golden 読み込み
+    // Python golden 読み込み（S16）
     auto golden_file = golden_path("DcCut", case_name + ".csv");
     auto golden      = load_csv(golden_file);
 
     ASSERT_EQ(golden.size(), out_left.size()) << "Size mismatch: " << case_name;
 
-    // RMSE 比較
-    double e = rmse(out_left, golden);
-    EXPECT_LT(e, 1e-6) << "RMSE too large in " << case_name;
+    // RMSE 比較（Q15をfloatに直した誤差）
+    double e = rmse(out_left, golden);  // ★ int16版 rmse
+    EXPECT_LT(e, 1e-3) << "RMSE too large in " << case_name;
 }
 
 // gtest

@@ -2,6 +2,7 @@
 #include "test_utils.h"
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -20,8 +21,8 @@ dsp::NoiseGateParams default_params()
     return p;
 }
 
-// caseN_input.csv を読み込む
-static void load_input_case(int case_index, std::vector<float> &x)
+// caseN_input.csv を読み込む（S16）
+static void load_input_case(int case_index, std::vector<int16_t> &x)
 {
     std::string file;
     switch (case_index) {
@@ -55,39 +56,39 @@ static void load_input_case(int case_index, std::vector<float> &x)
 // 1ケース分の共通実行
 static void run_case(int case_index, const std::string &case_name)
 {
-    // 入力
-    std::vector<float> x_mono;
+    // 入力（mono, S16）
+    std::vector<int16_t> x_mono;
     load_input_case(case_index, x_mono);
 
-    // ステレオ化
-    std::vector<float> in_stereo;
-    std::vector<float> out_stereo;
+    // ステレオ化（S16）
+    std::vector<int16_t> in_stereo;
+    std::vector<int16_t> out_stereo;
     mono_to_stereo_interleaved(x_mono, in_stereo);
     out_stereo.resize(in_stereo.size());
 
-    // ノイズゲート実行
+    // ノイズゲート実行（S16 in/out）
     const auto params = default_params();
     dsp::noise_gate(in_stereo.data(), out_stereo.data(), kN, sample_rate(), params);
 
-    // 左チャンネルだけ取り出し
-    std::vector<float> out_left(kN);
+    // 左チャンネルだけ取り出し（S16）
+    std::vector<int16_t> out_left(kN);
     for (std::size_t n = 0; n < kN; ++n) {
         out_left[n] = out_stereo[2 * n + 0];
     }
 
-    // C++結果を CSV に保存（デバッグ用）
+    // C++結果を CSV に保存（S16, デバッグ用）
     auto out_path = output_path("NoiseGate", case_name + "_cpp.csv");
     write_csv(out_path, out_left);
 
-    // Python golden 読み込み
+    // Python golden 読み込み（S16）
     auto golden_file = golden_path("NoiseGate", case_name + ".csv");
     auto golden      = load_csv(golden_file);
 
     ASSERT_EQ(golden.size(), out_left.size()) << "Size mismatch: " << case_name;
 
-    // RMSE 比較
+    // RMSE 比較（Q15→float 正規化で誤差を評価）
     double e = rmse(out_left, golden);
-    EXPECT_LT(e, 1e-6) << "RMSE too large in " << case_name;
+    EXPECT_LT(e, 1e-3) << "RMSE too large in " << case_name;
 }
 
 // gtest

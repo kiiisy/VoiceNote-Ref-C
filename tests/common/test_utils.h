@@ -40,13 +40,13 @@ fs::path golden_path(const std::string &module, const std::string &filename);
 fs::path output_path(const std::string &module, const std::string &filename);
 
 // CSV I/O
-std::vector<float> load_csv(const fs::path &path);
-void               write_csv(const fs::path &path, const std::vector<float> &v);
+std::vector<int16_t> load_csv(const fs::path &path);
+void                 write_csv(const fs::path &path, const std::vector<int16_t> &v);
 
 // 波形ユーティリティ
-void mono_to_stereo_interleaved(const std::vector<float> &mono, std::vector<float> &stereo);
+void mono_to_stereo_interleaved(const std::vector<int16_t> &mono, std::vector<int16_t> &stereo);
 
 // RMSE 計算
-double rmse(const std::vector<float> &a, const std::vector<float> &b);
+double rmse(const std::vector<int16_t> &a, const std::vector<int16_t> &b);
 
 }  // namespace testutil

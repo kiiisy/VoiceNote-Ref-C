@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 
 namespace dsp {
 
@@ -14,6 +15,6 @@ struct DcBlockState
     double y1R;  // 前回出力R
 };
 
-void dc_cut(const float *in, float *out, std::size_t frames, double fs, double fc);
+void dc_cut(const int16_t *in, int16_t *out, std::size_t frames, double fs, double fc);
 
 }  // namespace dsp

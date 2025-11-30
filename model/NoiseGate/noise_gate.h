@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 
 namespace dsp {
 
@@ -32,6 +33,6 @@ struct NoiseGateState
     double th_close;
 };
 
-void noise_gate(const float *in, float *out, std::size_t frames, double fs, const NoiseGateParams &p);
+void noise_gate(const int16_t *in, int16_t *out, std::size_t frames, double fs, const NoiseGateParams &p);
 
 }  // namespace dsp

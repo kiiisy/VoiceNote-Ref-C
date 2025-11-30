@@ -5,13 +5,30 @@ namespace dsp {
 
 namespace {
 
+// 正規化値(-1〜1) → Q15
+inline int16_t sat_q15_from_norm(double y_norm)
+{
+    double v = y_norm * 32768.0;
+    long   t = std::lround(v);
+    if (t > 32767) {
+        t = 32767;
+    }
+    if (t < -32768) {
+        t = -32768;
+    }
+    return static_cast<int16_t>(t);
+}
+
+// exp smoothing の係数
 inline double exp_coeff(double fs, double tau)
 {
     if (tau <= 0.0) {
-        return 0.0;  // 即座に target に追従
+        // tau=0 のときは即追従
+        return 0.0;
     }
     return std::exp(-1.0 / (fs * tau));
 }
+
 }  // namespace
 
 void init(NoiseGateState &st, double fs, const NoiseGateParams &p)
@@ -29,7 +46,9 @@ void init(NoiseGateState &st, double fs, const NoiseGateParams &p)
     st.th_close = p.th_close;
 }
 
-void core(NoiseGateState &st, const float *in, float *out, std::size_t frames)
+// ★ 16bit(Q15) 前提のリファレンス core
+//   in/out: [L0, R0, L1, R1, ...] の int16_t(Q15)
+void core(NoiseGateState &st, const int16_t *in, int16_t *out, std::size_t frames)
 {
     double gainL      = st.gainL;
     double gainR      = st.gainR;
@@ -42,8 +61,9 @@ void core(NoiseGateState &st, const float *in, float *out, std::size_t frames)
     const double a_release = st.a_release;
 
     for (std::size_t n = 0; n < frames; ++n) {
-        const double xL = static_cast<double>(in[2 * n + 0]);
-        const double xR = static_cast<double>(in[2 * n + 1]);
+        // 入力 Q15 → 正規化 double
+        const double xL = static_cast<double>(in[2 * n + 0]) / 32768.0;
+        const double xR = static_cast<double>(in[2 * n + 1]) / 32768.0;
 
         const double levelL = std::fabs(xL);
         const double levelR = std::fabs(xR);
@@ -76,11 +96,16 @@ void core(NoiseGateState &st, const float *in, float *out, std::size_t frames)
         const double aL = gate_openL ? a_attack : a_release;
         const double aR = gate_openR ? a_attack : a_release;
 
+        // スムージング (ゲイン)
         gainL = aL * gainL + (1.0 - aL) * targetL;
         gainR = aR * gainR + (1.0 - aR) * targetR;
 
-        out[2 * n + 0] = static_cast<float>(gainL * xL);
-        out[2 * n + 1] = static_cast<float>(gainR * xR);
+        // 出力: 正規化 * ゲイン → Q15
+        const double yL_norm = gainL * xL;
+        const double yR_norm = gainR * xR;
+
+        out[2 * n + 0] = sat_q15_from_norm(yL_norm);
+        out[2 * n + 1] = sat_q15_from_norm(yR_norm);
     }
 
     st.gainL      = gainL;
@@ -89,7 +114,8 @@ void core(NoiseGateState &st, const float *in, float *out, std::size_t frames)
     st.gate_openR = gate_openR;
 }
 
-void noise_gate(const float *in, float *out, std::size_t frames, double fs, const NoiseGateParams &p)
+// 外から呼ぶラッパ（S16 in/out）
+void noise_gate(const int16_t *in, int16_t *out, std::size_t frames, double fs, const NoiseGateParams &p)
 {
     NoiseGateState st{};
     init(st, fs, p);
